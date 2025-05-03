@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using IdentitySample.Repositories;
 using IdentitySample.ViewModels.Account;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +13,14 @@ namespace IdentitySample.Controllers
     {
         private readonly UserManager<IdentityUser> _userManager;
         private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly IMessageSender _messageSender;
 
         public AccountController(UserManager<IdentityUser> userManager,
-            SignInManager<IdentityUser> signInManager)
+            SignInManager<IdentityUser> signInManager,IMessageSender messageSender)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _messageSender = messageSender;
         }
 
 
@@ -35,14 +38,21 @@ namespace IdentitySample.Controllers
                 var user = new IdentityUser()
                 {
                     UserName = model.UserName,
-                    Email = model.Email,
-                    EmailConfirmed = true
+                    Email = model.Email
                 };
 
                 var result = await _userManager.CreateAsync(user, model.Password);
 
                 if (result.Succeeded)
                 {
+                    var emailConfirmationToken =
+                        await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    var emailMessage =
+                        Url.Action("ConfirmEmail", "Account",
+                            new { username = user.UserName, token = emailConfirmationToken },
+                            Request.Scheme);
+                    await _messageSender.SendEmailAsync(model.Email, "Email confirmation", emailMessage);
+
                     return RedirectToAction("Index", "Home");
                 }
 
@@ -57,7 +67,7 @@ namespace IdentitySample.Controllers
 
 
         [HttpGet]
-        public IActionResult Login(string? returnUrl = null)
+        public IActionResult Login(string returnUrl = null)
         {
             if (_signInManager.IsSignedIn(User))
                 return RedirectToAction("Index", "Home");
@@ -89,7 +99,7 @@ namespace IdentitySample.Controllers
 
                 if (result.IsLockedOut)
                 {
-                    ViewData["ErrorMessage"] = "اکانت شما به دلیل پنج بار ورود ناموفق به مدت پنج دقیق قفل شده است";
+                    ViewData["ErrorMessage"] = "اکانت شما به دلیل پنج بار ورود ناموفق به مدت پنج دقیقه قفل شده است";
                     return View(model);
                 }
 
@@ -107,10 +117,10 @@ namespace IdentitySample.Controllers
         }
 
         public async Task<IActionResult> IsEmailInUse(string email)
-        {
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return Json(true);
-            return Json("ایمیل وارد شده از قبل موجود است");
+        { 
+           var user =  await _userManager.FindByEmailAsync(email);
+           if (user == null) return Json(true);
+           return Json("ایمیل وارد شده از قبل موجود است");
         }
 
         public async Task<IActionResult> IsUserNameInUse(string userName)
@@ -119,5 +129,19 @@ namespace IdentitySample.Controllers
             if (user == null) return Json(true);
             return Json("نام کاربری وارد شده از قبل موجود است");
         }
+
+
+        [HttpGet]
+        public async Task<IActionResult> ConfirmEmail(string userName, string token)
+        {
+            if (string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(token))
+                return NotFound();
+            var user = await _userManager.FindByNameAsync(userName);
+            if (user == null) return NotFound();
+            var result = await _userManager.ConfirmEmailAsync(user, token);
+
+            return Content(result.Succeeded ? "Email Confirmed" : "Email Not Confirmed");
+        }
+
     }
 }

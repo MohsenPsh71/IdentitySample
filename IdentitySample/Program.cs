@@ -1,4 +1,5 @@
 using IdentitySample.Models.Context;
+using IdentitySample.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PersianTranslation.Identity;
@@ -13,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(option =>
 {
     option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+builder.Services.AddScoped<IMessageSender, MessageSender>();
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 {

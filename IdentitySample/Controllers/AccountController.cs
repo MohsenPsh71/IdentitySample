@@ -72,6 +72,8 @@ namespace IdentitySample.Controllers
             if (_signInManager.IsSignedIn(User))
                 return RedirectToAction("Index", "Home");
 
+            ViewData["returnUrl"] = returnUrl;
+
             if (ModelState.IsValid)
             {
                 var result = await _signInManager.PasswordSignInAsync(

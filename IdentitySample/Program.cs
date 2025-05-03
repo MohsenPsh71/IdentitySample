@@ -1,6 +1,7 @@
 using IdentitySample.Models.Context;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using PersianTranslation.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,11 +16,18 @@ builder.Services.AddDbContext<AppDbContext>(option =>
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 {
-    //options.Password.RequiredLength = 6;
-    //options.SignIn.RequireConfirmedAccount = true;
+    options.Password.RequiredUniqueChars = 0;
+
+    options.User.RequireUniqueEmail = true;
+    options.User.AllowedUserNameCharacters =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
+
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddErrorDescriber<PersianIdentityErrorDescriber>();
+
 
 var app = builder.Build();
 
